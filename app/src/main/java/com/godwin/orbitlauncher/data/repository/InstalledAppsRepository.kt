@@ -8,6 +8,7 @@ import com.godwin.orbitlauncher.domain.model.AppInfo
 interface InstalledAppsRepository {
     fun getLaunchableApps(): List<AppInfo>
     fun launch(app: AppInfo)
+    fun findByPackage(packageName: String): AppInfo?
 }
 
 class InstalledAppsRepositoryImpl(
@@ -39,5 +40,9 @@ class InstalledAppsRepositoryImpl(
             flags = Intent.FLAG_ACTIVITY_NEW_TASK
         }
         context.startActivity(intent)
+    }
+
+    override fun findByPackage(packageName: String): AppInfo? {
+        return getLaunchableApps().firstOrNull { it.packageName == packageName }
     }
 }
