@@ -7,6 +7,13 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -17,6 +24,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.unit.dp
 import com.godwin.orbitlauncher.domain.model.AppInfo
 
 /**
@@ -86,6 +94,39 @@ fun OrbitWheelOverlay(
                     onDismiss()
                 }
             )
+        }
+
+        // Edge toggle: small chevron button sitting right on the screen
+        // edge at the wheel's vertical middle, per spec ("toggle button
+        // sits between the wheel and phone edge"). Appears together with
+        // the wheel and closes it on tap.
+        Box(
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .graphicsLayer {
+                    translationX = (1f - slideProgress) * 260f
+                    alpha = slideProgress
+                }
+        ) {
+            Surface(
+                modifier = Modifier
+                    .padding(end = 4.dp)
+                    .size(26.dp)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onDismiss
+                    ),
+                shape = CircleShape,
+                color = Color(0xFF1A1A1A)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.ChevronLeft,
+                    contentDescription = "Close app wheel",
+                    tint = Color(0xFFE53935),
+                    modifier = Modifier.padding(4.dp)
+                )
+            }
         }
     }
 }

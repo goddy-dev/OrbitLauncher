@@ -17,6 +17,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -100,20 +101,29 @@ fun OrbitWheel(
                 )
             }
     ) {
-        val cx = size.width * 0.12f
+        // Pivot sits exactly on the screen edge (right edge of this
+        // container), matching the reference: the crescent bulges INTO
+        // the screen from the edge, tapering back to the edge at top
+        // and bottom -- mirrored here since our wheel is right-edge
+        // instead of the reference's left-edge.
+        val cx = size.width
         val cy = size.height / 2f
         val radius = size.width * 0.95f
 
-        // Track arc
-        drawArc(
-            color = Color(0x33FFFFFF),
-            startAngle = START_ANGLE_DEG,
-            sweepAngle = ARC_SPAN_DEG,
-            useCenter = false,
-            style = Stroke(width = 2.dp.toPx()),
-            topLeft = Offset(cx - radius, cy - radius),
-            size = Size(radius * 2, radius * 2)
-        )
+        // Track arc: drawn with standard (non-mirrored) angle math, then
+        // flipped horizontally around the pivot so it lines up with the
+        // mirrored bubble positions computed below.
+        scale(scaleX = -1f, scaleY = 1f, pivot = Offset(cx, cy)) {
+            drawArc(
+                color = Color(0x33FFFFFF),
+                startAngle = START_ANGLE_DEG,
+                sweepAngle = ARC_SPAN_DEG,
+                useCenter = false,
+                style = Stroke(width = 2.dp.toPx()),
+                topLeft = Offset(cx - radius, cy - radius),
+                size = Size(radius * 2, radius * 2)
+            )
+        }
 
         val roundedOffset = offsetAnim.value.roundToInt()
         val frac = offsetAnim.value - roundedOffset
@@ -125,7 +135,9 @@ fun OrbitWheel(
 
             val angleDeg = START_ANGLE_DEG + posInArc * (ARC_SPAN_DEG / (VISIBLE_COUNT - 1))
             val angleRad = angleDeg * PI.toFloat() / 180f
-            val x = cx + radius * cos(angleRad)
+            // Mirrored: subtract instead of add, so the bulge faces left
+            // (into the screen) from a pivot sitting on the right edge.
+            val x = cx - radius * cos(angleRad)
             val y = cy + radius * sin(angleRad)
 
             val isCenter = posInArc in 1.5f..2.5f

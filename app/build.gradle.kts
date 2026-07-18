@@ -13,7 +13,7 @@ android {
         minSdk = 26
         targetSdk = 34
         versionCode = 1
-        versionName = "0.3.1-phase3-fix"
+        versionName = "0.3.3-wheel-toggle"
     }
 
     buildTypes {
