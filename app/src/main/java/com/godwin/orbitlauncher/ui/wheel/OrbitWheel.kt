@@ -21,9 +21,9 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.animation.core.Animatable
 import androidx.compose.ui.unit.dp
 import com.godwin.orbitlauncher.domain.model.AppInfo
-import kotlinx.coroutines.Animatable
 import kotlinx.coroutines.launch
 import kotlin.math.PI
 import kotlin.math.abs
