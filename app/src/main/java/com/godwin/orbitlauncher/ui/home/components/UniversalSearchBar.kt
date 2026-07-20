@@ -1,5 +1,6 @@
 package com.godwin.orbitlauncher.ui.home.components
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -7,6 +8,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -22,10 +24,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 /**
- * Compact rounded search bar. Visually functional (typing works, cursor
- * blinks) but not wired to real search logic yet -- that's Phase 4
- * ("Search system") in the spec, which adds app/contact/settings/file/
- * web/voice search behind this same field.
+ * Compact rounded search bar covering the spec's "Universal Search" entry
+ * point: typing filters apps/settings/contacts/files/calculator (handled
+ * by SearchViewModel), and the mic icon triggers voice input.
  *
  * Built on BasicTextField rather than Material's OutlinedTextField so we
  * have full control over height -- OutlinedTextField enforces a 56dp
@@ -35,6 +36,7 @@ import androidx.compose.ui.unit.sp
 fun UniversalSearchBar(
     query: String,
     onQueryChange: (String) -> Unit,
+    onMicClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -52,7 +54,7 @@ fun UniversalSearchBar(
                 tint = Color(0xFF888888),
                 modifier = Modifier.padding(end = 8.dp)
             )
-            Box(modifier = Modifier.fillMaxWidth()) {
+            Box(modifier = Modifier.weight(1f)) {
                 if (query.isEmpty()) {
                     Text(
                         text = "Search the web or apps...",
@@ -72,6 +74,14 @@ fun UniversalSearchBar(
                     modifier = Modifier.fillMaxWidth()
                 )
             }
+            Icon(
+                Icons.Filled.Mic,
+                contentDescription = "Voice search",
+                tint = Color(0xFF888888),
+                modifier = Modifier
+                    .padding(start = 8.dp)
+                    .clickable(onClick = onMicClick)
+            )
         }
     }
 }

@@ -13,7 +13,7 @@ android {
         minSdk = 26
         targetSdk = 34
         versionCode = 1
-        versionName = "0.3.3-wheel-toggle"
+        versionName = "0.4.1-universal-search"
     }
 
     buildTypes {

@@ -2,8 +2,11 @@ package com.godwin.orbitlauncher.di
 
 import android.content.Context
 import com.godwin.orbitlauncher.data.local.OrbitDatabase
+import com.godwin.orbitlauncher.data.repository.ContactsRepository
+import com.godwin.orbitlauncher.data.repository.FileSearchRepository
 import com.godwin.orbitlauncher.data.repository.InstalledAppsRepository
 import com.godwin.orbitlauncher.data.repository.InstalledAppsRepositoryImpl
+import com.godwin.orbitlauncher.data.repository.RecentSearchesRepository
 import com.godwin.orbitlauncher.data.repository.SettingsRepository
 
 /**
@@ -28,5 +31,17 @@ object AppGraph {
 
     val settingsRepository: SettingsRepository by lazy {
         SettingsRepository(appContext)
+    }
+
+    val recentSearchesRepository: RecentSearchesRepository by lazy {
+        RecentSearchesRepository(appContext)
+    }
+
+    val contactsRepository: ContactsRepository by lazy {
+        ContactsRepository(appContext)
+    }
+
+    val fileSearchRepository: FileSearchRepository by lazy {
+        FileSearchRepository(appContext)
     }
 }
