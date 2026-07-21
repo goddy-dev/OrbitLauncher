@@ -35,6 +35,7 @@ import com.godwin.orbitlauncher.domain.model.AppInfo
 @Composable
 fun DockRow(
     dockApps: List<AppInfo?>,
+    notifyingPackages: Set<String>,
     onSlotTap: (Int) -> Unit,
     onSlotLongPress: (Int) -> Unit,
     modifier: Modifier = Modifier
@@ -53,27 +54,44 @@ fun DockRow(
                     )
                     .padding(8.dp)
             ) {
-                Surface(
-                    modifier = Modifier.size(52.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    color = Color(0x1AFFFFFF)
-                ) {
-                    if (app != null) {
-                        Image(
-                            bitmap = app.icon.toBitmap().asImageBitmap(),
-                            contentDescription = app.label,
-                            modifier = Modifier.padding(8.dp)
-                        )
-                    } else {
-                        Box(
-                            modifier = Modifier.fillMaxWidth(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                Icons.Filled.Add,
-                                contentDescription = "Set app",
-                                tint = Color(0xFF666666)
+                Box {
+                    Surface(
+                        modifier = Modifier.size(52.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        color = Color(0x1AFFFFFF)
+                    ) {
+                        if (app != null) {
+                            Image(
+                                bitmap = app.icon.toBitmap().asImageBitmap(),
+                                contentDescription = app.label,
+                                modifier = Modifier.padding(8.dp)
                             )
+                        } else {
+                            Box(
+                                modifier = Modifier.fillMaxWidth(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Filled.Add,
+                                    contentDescription = "Set app",
+                                    tint = Color(0xFF666666)
+                                )
+                            }
+                        }
+                    }
+                    if (app != null && app.packageName in notifyingPackages) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .size(10.dp)
+                                .clip(RoundedCornerShape(50))
+                                .padding(1.dp)
+                        ) {
+                            Surface(
+                                modifier = Modifier.size(8.dp),
+                                shape = RoundedCornerShape(50),
+                                color = Color.White
+                            ) {}
                         }
                     }
                 }

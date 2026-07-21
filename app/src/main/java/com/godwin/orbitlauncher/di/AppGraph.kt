@@ -8,6 +8,7 @@ import com.godwin.orbitlauncher.data.repository.InstalledAppsRepository
 import com.godwin.orbitlauncher.data.repository.InstalledAppsRepositoryImpl
 import com.godwin.orbitlauncher.data.repository.RecentSearchesRepository
 import com.godwin.orbitlauncher.data.repository.SettingsRepository
+import com.godwin.orbitlauncher.data.repository.UsageRepository
 
 /**
  * Minimal manual DI graph. Kept intentionally simple (no Hilt/Koin) for
@@ -43,5 +44,9 @@ object AppGraph {
 
     val fileSearchRepository: FileSearchRepository by lazy {
         FileSearchRepository(appContext)
+    }
+
+    val usageRepository: UsageRepository by lazy {
+        UsageRepository(database.appUsageDao())
     }
 }

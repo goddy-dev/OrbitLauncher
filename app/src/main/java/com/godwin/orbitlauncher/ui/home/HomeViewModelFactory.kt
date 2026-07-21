@@ -10,7 +10,8 @@ class HomeViewModelFactory : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         return HomeViewModel(
             pinnedAppDao = AppGraph.database.pinnedAppDao(),
-            installedAppsRepository = AppGraph.installedAppsRepository
+            installedAppsRepository = AppGraph.installedAppsRepository,
+            usageRepository = AppGraph.usageRepository
         ) as T
     }
 }

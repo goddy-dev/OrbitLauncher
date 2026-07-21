@@ -41,8 +41,11 @@ import com.godwin.orbitlauncher.domain.model.AppInfo
 fun OrbitWheelOverlay(
     isOpen: Boolean,
     apps: List<AppInfo>,
+    favoritePackages: Set<String>,
+    notifyingPackages: Set<String>,
     onDismiss: () -> Unit,
-    onAppSelected: (AppInfo) -> Unit
+    onAppSelected: (AppInfo) -> Unit,
+    onToggleFavorite: (AppInfo) -> Unit
 ) {
     val haptics = LocalHapticFeedback.current
 
@@ -66,16 +69,12 @@ fun OrbitWheelOverlay(
     if (scrimAlpha <= 0f && slideProgress <= 0f) return
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // Dimmed backdrop, tap outside the wheel to close.
+        // Dimmed backdrop -- no longer tap-to-close. Per updated design,
+        // the edge toggle chevron is the ONLY way to retract the wheel.
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.Black.copy(alpha = scrimAlpha))
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onDismiss
-                )
         )
 
         // Wheel slides in from off-screen-right toward its resting position.
@@ -89,10 +88,13 @@ fun OrbitWheelOverlay(
         ) {
             OrbitWheel(
                 apps = apps,
+                favoritePackages = favoritePackages,
+                notifyingPackages = notifyingPackages,
                 onAppSelected = { app ->
                     onAppSelected(app)
                     onDismiss()
-                }
+                },
+                onToggleFavorite = onToggleFavorite
             )
         }
 

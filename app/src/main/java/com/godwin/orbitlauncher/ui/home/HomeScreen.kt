@@ -25,6 +25,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.godwin.orbitlauncher.data.notifications.OrbitNotificationListenerService
 import com.godwin.orbitlauncher.ui.home.components.AppPickerDialog
 import com.godwin.orbitlauncher.ui.home.components.ClockAndDate
 import com.godwin.orbitlauncher.ui.home.components.DockRow
@@ -54,6 +55,7 @@ fun HomeScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val searchState by searchViewModel.uiState.collectAsState()
+    val notifyingPackages by OrbitNotificationListenerService.activePackages.collectAsState()
     val context = LocalContext.current
 
     var pickerSlotIndex by remember { mutableIntStateOf(-1) }
@@ -147,6 +149,7 @@ fun HomeScreen(
 
         DockRow(
             dockApps = uiState.dockApps,
+            notifyingPackages = notifyingPackages,
             onSlotTap = { index ->
                 uiState.dockApps.getOrNull(index)?.let { viewModel.onLaunchApp(it) }
             },

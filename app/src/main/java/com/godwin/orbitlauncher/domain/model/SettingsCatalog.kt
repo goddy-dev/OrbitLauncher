@@ -20,6 +20,7 @@ object SettingsCatalog {
         SettingsEntry("Storage", android.provider.Settings.ACTION_INTERNAL_STORAGE_SETTINGS),
         SettingsEntry("Airplane mode", android.provider.Settings.ACTION_AIRPLANE_MODE_SETTINGS),
         SettingsEntry("NFC", android.provider.Settings.ACTION_NFC_SETTINGS),
+        SettingsEntry("Notification access", android.provider.Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS),
         SettingsEntry("All settings", android.provider.Settings.ACTION_SETTINGS)
     )
 

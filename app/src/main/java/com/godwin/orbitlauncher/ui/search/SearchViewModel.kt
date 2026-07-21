@@ -12,6 +12,7 @@ import com.godwin.orbitlauncher.data.repository.FileResult
 import com.godwin.orbitlauncher.data.repository.FileSearchRepository
 import com.godwin.orbitlauncher.data.repository.InstalledAppsRepository
 import com.godwin.orbitlauncher.data.repository.RecentSearchesRepository
+import com.godwin.orbitlauncher.data.repository.UsageRepository
 import com.godwin.orbitlauncher.domain.model.AppInfo
 import com.godwin.orbitlauncher.domain.model.SettingsCatalog
 import com.godwin.orbitlauncher.domain.model.SettingsEntry
@@ -47,10 +48,16 @@ class SearchViewModel(
     private val installedAppsRepository: InstalledAppsRepository,
     private val recentSearchesRepository: RecentSearchesRepository,
     private val contactsRepository: ContactsRepository,
-    private val fileSearchRepository: FileSearchRepository
+    private val fileSearchRepository: FileSearchRepository,
+    private val usageRepository: UsageRepository
 ) : ViewModel() {
 
     private val allApps: List<AppInfo> by lazy { installedAppsRepository.getLaunchableApps() }
+
+    /** package -> rank (0 = most used), refreshed from UsageRepository.
+     * Powers Smart Search: apps you actually use more often rank higher
+     * in results than a plain alphabetical/contains match would give. */
+    private var usageRank: Map<String, Int> = emptyMap()
 
     private val _uiState = MutableStateFlow(SearchUiState())
     val uiState: StateFlow<SearchUiState> = _uiState.asStateFlow()
@@ -59,6 +66,11 @@ class SearchViewModel(
         viewModelScope.launch {
             recentSearchesRepository.recentSearchesFlow.collectLatest { recent ->
                 _uiState.value = _uiState.value.copy(recentSearches = recent)
+            }
+        }
+        viewModelScope.launch {
+            usageRepository.observeMostUsed().collectLatest { entities ->
+                usageRank = entities.withIndex().associate { (index, entity) -> entity.packageName to index }
             }
         }
     }
@@ -95,6 +107,9 @@ class SearchViewModel(
     fun onAppLaunched(app: AppInfo) {
         installedAppsRepository.launch(app)
         recordSearch(app.label)
+        viewModelScope.launch {
+            usageRepository.recordLaunch(app.packageName)
+        }
     }
 
     fun onSettingsTapped(context: Context, entry: SettingsEntry) {

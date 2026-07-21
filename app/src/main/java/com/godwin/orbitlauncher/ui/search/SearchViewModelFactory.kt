@@ -12,7 +12,8 @@ class SearchViewModelFactory : ViewModelProvider.Factory {
             installedAppsRepository = AppGraph.installedAppsRepository,
             recentSearchesRepository = AppGraph.recentSearchesRepository,
             contactsRepository = AppGraph.contactsRepository,
-            fileSearchRepository = AppGraph.fileSearchRepository
+            fileSearchRepository = AppGraph.fileSearchRepository,
+            usageRepository = AppGraph.usageRepository
         ) as T
     }
 }
