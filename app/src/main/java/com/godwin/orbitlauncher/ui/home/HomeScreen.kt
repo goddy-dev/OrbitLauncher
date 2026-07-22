@@ -50,6 +50,9 @@ import java.util.Locale
 @Composable
 fun HomeScreen(
     onOpenWheel: () -> Unit,
+    searchBarVisible: Boolean = true,
+    dockLabelsVisible: Boolean = true,
+    wheelOnRight: Boolean = true,
     viewModel: HomeViewModel = viewModel(factory = HomeViewModelFactory()),
     searchViewModel: SearchViewModel = viewModel(factory = SearchViewModelFactory())
 ) {
@@ -108,33 +111,35 @@ fun HomeScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        UniversalSearchBar(
-            query = searchState.query,
-            onQueryChange = { searchViewModel.onQueryChange(it) },
-            onMicClick = {
-                val intent = android.content.Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                    putExtra(
-                        RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-                        RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
-                    )
-                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault().toString())
-                    putExtra(RecognizerIntent.EXTRA_PROMPT, "Search Orbit Launcher")
+        if (searchBarVisible) {
+            UniversalSearchBar(
+                query = searchState.query,
+                onQueryChange = { searchViewModel.onQueryChange(it) },
+                onMicClick = {
+                    val intent = android.content.Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                        putExtra(
+                            RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                            RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+                        )
+                        putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault().toString())
+                        putExtra(RecognizerIntent.EXTRA_PROMPT, "Search Orbit Launcher")
+                    }
+                    voiceLauncher.launch(intent)
                 }
-                voiceLauncher.launch(intent)
-            }
-        )
+            )
 
-        Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-        SearchResultsPanel(
-            uiState = searchState,
-            onAppTap = { app -> searchViewModel.onAppLaunched(app) },
-            onSettingsTap = { entry -> searchViewModel.onSettingsTapped(context, entry) },
-            onContactTap = { contact -> searchViewModel.onContactTapped(context, contact) },
-            onFileTap = { file -> searchViewModel.onFileTapped(context, file) },
-            onWebSearchTap = { query -> searchViewModel.onWebSearch(context, query) },
-            onRecentTap = { query -> searchViewModel.onRecentSearchTapped(query) }
-        )
+            SearchResultsPanel(
+                uiState = searchState,
+                onAppTap = { app -> searchViewModel.onAppLaunched(app) },
+                onSettingsTap = { entry -> searchViewModel.onSettingsTapped(context, entry) },
+                onContactTap = { contact -> searchViewModel.onContactTapped(context, contact) },
+                onFileTap = { file -> searchViewModel.onFileTapped(context, file) },
+                onWebSearchTap = { query -> searchViewModel.onWebSearch(context, query) },
+                onRecentTap = { query -> searchViewModel.onRecentSearchTapped(query) }
+            )
+        }
 
         // Empty center: intentionally blank so the wallpaper shows through,
         // per spec. Nothing should be rendered in this space.
@@ -142,7 +147,7 @@ fun HomeScreen(
 
         DrawerButton(
             onClick = onOpenWheel,
-            modifier = Modifier.align(Alignment.End)
+            modifier = Modifier.align(if (wheelOnRight) Alignment.End else Alignment.Start)
         )
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -150,6 +155,7 @@ fun HomeScreen(
         DockRow(
             dockApps = uiState.dockApps,
             notifyingPackages = notifyingPackages,
+            showLabels = dockLabelsVisible,
             onSlotTap = { index ->
                 uiState.dockApps.getOrNull(index)?.let { viewModel.onLaunchApp(it) }
             },

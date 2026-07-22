@@ -32,10 +32,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.godwin.orbitlauncher.data.notifications.OrbitNotificationListenerService
+import com.godwin.orbitlauncher.data.repository.HapticStrength
 import com.godwin.orbitlauncher.di.AppGraph
 import com.godwin.orbitlauncher.domain.util.WallpaperApplier
 import com.godwin.orbitlauncher.domain.util.WallpaperColorExtractor
 import com.godwin.orbitlauncher.ui.home.components.QuickSettingsMenu
+import com.godwin.orbitlauncher.ui.settings.SettingsScreen
+import com.godwin.orbitlauncher.ui.settings.SettingsUiValues
 import com.godwin.orbitlauncher.ui.theme.OrbitLauncherTheme
 import com.godwin.orbitlauncher.ui.wallpaper.WallpaperCropScreen
 import com.godwin.orbitlauncher.ui.wheel.OrbitWheelOverlay
@@ -44,41 +47,66 @@ import kotlinx.coroutines.launch
 /**
  * Registered as the device HOME app.
  *
- * Premium features wired in here: real background blur behind the wheel
- * on Android 12+ (falls back to the dim scrim below that on older
- * devices), one-handed mode, Material You dynamic color, and the
- * wallpaper system (Phase 5) -- long-press any empty area of the home
- * screen opens a small menu with "Change wallpaper" plus the one-handed
- * and Material You toggles.
+ * Phase 6 (Settings and customization) wires every DataStore-backed
+ * setting to something that actually changes on screen: AMOLED vs dark
+ * gray background, dark/light mode, search bar and dock label
+ * visibility, wheel size/animation speed/haptic strength/edge position,
+ * plus the Phase 5 wallpaper picker and the one-handed-mode / Material
+ * You toggles from earlier. Icon packs and custom fonts are flagged in
+ * the Settings screen itself as not-yet-built rather than faked.
  */
 class LauncherActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             val context = LocalContext.current
+            val settings = AppGraph.settingsRepository
+            val scope = rememberCoroutineScope()
 
             var oneHandedMode by remember { mutableStateOf(false) }
             var materialYouEnabled by remember { mutableStateOf(false) }
-            val scope = rememberCoroutineScope()
+            var amoledMode by remember { mutableStateOf(true) }
+            var darkMode by remember { mutableStateOf(true) }
+            var wheelSizeScale by remember { mutableStateOf(1f) }
+            var animationSpeedScale by remember { mutableStateOf(1f) }
+            var searchBarVisible by remember { mutableStateOf(true) }
+            var dockLabelsVisible by remember { mutableStateOf(true) }
+            var hapticStrength by remember { mutableStateOf(HapticStrength.LIGHT) }
+            var wheelOnRight by remember { mutableStateOf(true) }
 
-            LaunchedEffect(Unit) {
-                AppGraph.settingsRepository.oneHandedModeFlow.collect { oneHandedMode = it }
-            }
-            LaunchedEffect(Unit) {
-                AppGraph.settingsRepository.materialYouFlow.collect { materialYouEnabled = it }
-            }
+            LaunchedEffect(Unit) { settings.oneHandedModeFlow.collect { oneHandedMode = it } }
+            LaunchedEffect(Unit) { settings.materialYouFlow.collect { materialYouEnabled = it } }
+            LaunchedEffect(Unit) { settings.amoledModeFlow.collect { amoledMode = it } }
+            LaunchedEffect(Unit) { settings.darkModeFlow.collect { darkMode = it } }
+            LaunchedEffect(Unit) { settings.wheelSizeScaleFlow.collect { wheelSizeScale = it } }
+            LaunchedEffect(Unit) { settings.animationSpeedScaleFlow.collect { animationSpeedScale = it } }
+            LaunchedEffect(Unit) { settings.searchBarVisibleFlow.collect { searchBarVisible = it } }
+            LaunchedEffect(Unit) { settings.dockLabelsVisibleFlow.collect { dockLabelsVisible = it } }
+            LaunchedEffect(Unit) { settings.hapticStrengthFlow.collect { hapticStrength = it } }
+            LaunchedEffect(Unit) { settings.wheelOnRightFlow.collect { wheelOnRight = it } }
 
             OrbitLauncherTheme(materialYouEnabled = materialYouEnabled) {
+                // AMOLED = true black; otherwise a dark gray background,
+                // both only meaningful while darkMode is on (a full light
+                // scheme swap is a larger theming pass -- for now light
+                // mode falls back to the same dark background rather than
+                // an unfinished half-built light theme).
+                val backgroundColor = if (!darkMode) {
+                    Color(0xFFF5F5F5)
+                } else if (amoledMode) {
+                    Color.Black
+                } else {
+                    Color(0xFF121212)
+                }
+
                 Surface(
-                    modifier = Modifier.fillMaxSize().background(Color.Black)
+                    modifier = Modifier.fillMaxSize().background(backgroundColor)
                 ) {
                     val homeViewModel: HomeViewModel = viewModel(factory = HomeViewModelFactory())
                     val uiState by homeViewModel.uiState.collectAsState()
                     val notifyingPackages by OrbitNotificationListenerService.activePackages
                         .collectAsState()
 
-                    // Recomputed whenever wallpaperRefreshKey changes, i.e.
-                    // right after a new wallpaper is successfully applied.
                     var wallpaperRefreshKey by remember { mutableIntStateOf(0) }
                     val wallpaperAccentColor = remember(wallpaperRefreshKey) {
                         WallpaperColorExtractor.extractAccentColor(context)
@@ -86,6 +114,7 @@ class LauncherActivity : ComponentActivity() {
 
                     var wheelOpen by remember { mutableStateOf(false) }
                     var showQuickMenu by remember { mutableStateOf(false) }
+                    var showSettingsScreen by remember { mutableStateOf(false) }
                     var pickedWallpaperUri by remember { mutableStateOf<Uri?>(null) }
 
                     val pickImageLauncher = rememberLauncherForActivityResult(
@@ -127,6 +156,9 @@ class LauncherActivity : ComponentActivity() {
                         ) {
                             HomeScreen(
                                 onOpenWheel = { wheelOpen = true },
+                                searchBarVisible = searchBarVisible,
+                                dockLabelsVisible = dockLabelsVisible,
+                                wheelOnRight = wheelOnRight,
                                 viewModel = homeViewModel
                             )
                         }
@@ -137,6 +169,10 @@ class LauncherActivity : ComponentActivity() {
                             favoritePackages = uiState.favoritePackages,
                             notifyingPackages = notifyingPackages,
                             edgeGlowColor = wallpaperAccentColor,
+                            sizeScale = wheelSizeScale,
+                            animationSpeedScale = animationSpeedScale,
+                            hapticStrength = hapticStrength,
+                            wheelOnRight = wheelOnRight,
                             onDismiss = { wheelOpen = false },
                             onAppSelected = { app -> homeViewModel.onLaunchApp(app) },
                             onToggleFavorite = { app -> homeViewModel.onToggleFavorite(app) }
@@ -161,17 +197,41 @@ class LauncherActivity : ComponentActivity() {
                                         )
                                     },
                                     onToggleOneHanded = {
-                                        scope.launch {
-                                            AppGraph.settingsRepository.setOneHandedMode(!oneHandedMode)
-                                        }
+                                        scope.launch { settings.setOneHandedMode(!oneHandedMode) }
                                     },
                                     onToggleMaterialYou = {
-                                        scope.launch {
-                                            AppGraph.settingsRepository.setMaterialYou(!materialYouEnabled)
-                                        }
+                                        scope.launch { settings.setMaterialYou(!materialYouEnabled) }
+                                    },
+                                    onOpenSettings = {
+                                        showQuickMenu = false
+                                        showSettingsScreen = true
                                     }
                                 )
                             }
+                        }
+
+                        if (showSettingsScreen) {
+                            SettingsScreen(
+                                values = SettingsUiValues(
+                                    amoledMode = amoledMode,
+                                    darkMode = darkMode,
+                                    wheelSizeScale = wheelSizeScale,
+                                    animationSpeedScale = animationSpeedScale,
+                                    searchBarVisible = searchBarVisible,
+                                    dockLabelsVisible = dockLabelsVisible,
+                                    hapticStrength = hapticStrength,
+                                    wheelOnRight = wheelOnRight
+                                ),
+                                onBack = { showSettingsScreen = false },
+                                onAmoledModeChange = { scope.launch { settings.setAmoledMode(it) } },
+                                onDarkModeChange = { scope.launch { settings.setDarkMode(it) } },
+                                onWheelSizeScaleChange = { scope.launch { settings.setWheelSizeScale(it) } },
+                                onAnimationSpeedScaleChange = { scope.launch { settings.setAnimationSpeedScale(it) } },
+                                onSearchBarVisibleChange = { scope.launch { settings.setSearchBarVisible(it) } },
+                                onDockLabelsVisibleChange = { scope.launch { settings.setDockLabelsVisible(it) } },
+                                onHapticStrengthChange = { scope.launch { settings.setHapticStrength(it) } },
+                                onWheelOnRightChange = { scope.launch { settings.setWheelOnRight(it) } }
+                            )
                         }
 
                         val wallpaperUri = pickedWallpaperUri

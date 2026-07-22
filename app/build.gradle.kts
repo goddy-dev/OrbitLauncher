@@ -13,7 +13,7 @@ android {
         minSdk = 26
         targetSdk = 34
         versionCode = 1
-        versionName = "0.6-phase5-wallpaper"
+        versionName = "0.7-phase6-settings"
     }
 
     buildTypes {

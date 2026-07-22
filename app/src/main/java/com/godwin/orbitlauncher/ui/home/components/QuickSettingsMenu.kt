@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.PanTool
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material3.Icon
@@ -30,6 +31,7 @@ fun QuickSettingsMenu(
     onChangeWallpaper: () -> Unit,
     onToggleOneHanded: () -> Unit,
     onToggleMaterialYou: () -> Unit,
+    onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -83,6 +85,17 @@ fun QuickSettingsMenu(
                     onCheckedChange = { onToggleMaterialYou() },
                     colors = SwitchDefaults.colors()
                 )
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onOpenSettings)
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Filled.MoreHoriz, contentDescription = null, tint = Color(0xFFAAAAAA))
+                Text("More settings", color = Color.White, modifier = Modifier.padding(start = 12.dp))
             }
         }
     }

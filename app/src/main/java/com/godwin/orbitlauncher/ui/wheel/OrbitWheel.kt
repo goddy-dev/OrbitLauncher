@@ -1,6 +1,7 @@
 package com.godwin.orbitlauncher.ui.wheel
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -23,6 +24,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
+import com.godwin.orbitlauncher.data.repository.HapticStrength
 import com.godwin.orbitlauncher.domain.model.AppInfo
 import kotlinx.coroutines.launch
 import kotlin.math.abs
@@ -33,24 +35,29 @@ import kotlin.math.sin
 
 private const val VISIBLE_COUNT = 8
 private const val DRAG_SENSITIVITY = 55f // px of drag per one app step
+private const val BASE_SNAP_DURATION_MS = 150
 
 // Panel proportions, per reference: thickness ~15-20% of screen width at
 // its widest, height ~75-85% of screen height, very large radius for a
 // gentle bend (pivot sits far off-screen, not at the edge itself).
 private const val HEIGHT_FRACTION_OF_SCREEN = 0.80f
+private const val BASE_WIDTH_DP = 110
 
 /**
- * Right-edge vertical crescent panel -- an annular sector (slice of a
- * ring) clipped to the screen edge, not a floating row of bubbles. The
- * outer edge is flush with the screen edge; the inner edge is a smooth,
- * large-radius convex curve bowing toward the screen center, traced with
- * a glowing outline. Icons sit in slightly tilted card slices that fan
- * along the arc.
+ * Vertical crescent panel, attachable to either screen edge -- an
+ * annular sector (slice of a ring), not a floating row of bubbles. Two
+ * curved lines (tinted with [edgeGlowColor], usually pulled from the
+ * wallpaper) bound a lens-shaped band where icon cards sit, fanned
+ * slightly along the arc.
  *
- * Interaction unchanged: drag vertically to rotate through [apps]
- * (already ordered favorites-first-then-by-usage by the caller -- the
- * "adaptive wheel" + "Favorite Ring" premium features). Release snaps to
- * the nearest app; a tap on the centered card launches it; a long-press
+ * Settings applied here (Phase 6): [sizeScale] scales the panel's width
+ * and line thickness, [animationSpeedScale] scales snap-animation
+ * duration, [hapticStrength] gates/adjusts feedback intensity, and
+ * [wheelOnRight] mirrors the whole geometry to the left edge when false.
+ *
+ * Interaction: drag vertically to rotate through [apps] (already ordered
+ * favorites-first-then-by-usage by the caller). Release snaps to the
+ * nearest app; a tap on the centered card launches it; a long-press
  * toggles it as a favorite. [notifyingPackages] draws a small dot on any
  * card belonging to an app with an active notification.
  */
@@ -60,6 +67,10 @@ fun OrbitWheel(
     favoritePackages: Set<String>,
     notifyingPackages: Set<String>,
     edgeGlowColor: Color,
+    sizeScale: Float = 1f,
+    animationSpeedScale: Float = 1f,
+    hapticStrength: HapticStrength = HapticStrength.LIGHT,
+    wheelOnRight: Boolean = true,
     onAppSelected: (AppInfo) -> Unit,
     onToggleFavorite: (AppInfo) -> Unit,
     modifier: Modifier = Modifier
@@ -69,6 +80,12 @@ fun OrbitWheel(
     val haptics = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
 
+    fun feedback(type: HapticFeedbackType) {
+        if (hapticStrength != HapticStrength.OFF) {
+            haptics.performHapticFeedback(type)
+        }
+    }
+
     val offsetAnim = remember { Animatable(0f) }
     var lastTickIndex by remember { mutableIntStateOf(0) }
     var dragTotal by remember { mutableFloatStateOf(0f) }
@@ -76,7 +93,7 @@ fun OrbitWheel(
     Canvas(
         modifier = modifier
             .fillMaxHeight(HEIGHT_FRACTION_OF_SCREEN)
-            .width(110.dp)
+            .width((BASE_WIDTH_DP * sizeScale).dp)
             .pointerInput(apps) {
                 detectDragGestures(
                     onDragStart = { dragTotal = 0f },
@@ -89,13 +106,22 @@ fun OrbitWheel(
                             val tickIndex = newValue.roundToInt()
                             if (tickIndex != lastTickIndex) {
                                 lastTickIndex = tickIndex
-                                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                feedback(
+                                    if (hapticStrength == HapticStrength.STRONG)
+                                        HapticFeedbackType.LongPress
+                                    else
+                                        HapticFeedbackType.TextHandleMove
+                                )
                             }
                         }
                     },
                     onDragEnd = {
                         scope.launch {
-                            offsetAnim.animateTo(offsetAnim.value.roundToInt().toFloat())
+                            val durationMs = (BASE_SNAP_DURATION_MS / animationSpeedScale.coerceIn(0.25f, 4f)).roundToInt()
+                            offsetAnim.animateTo(
+                                offsetAnim.value.roundToInt().toFloat(),
+                                animationSpec = tween(durationMillis = durationMs)
+                            )
                         }
                     }
                 )
@@ -105,21 +131,25 @@ fun OrbitWheel(
                     onTap = {
                         if (dragTotal < 12f) {
                             val idx = Math.floorMod(offsetAnim.value.roundToInt(), apps.size)
-                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            feedback(HapticFeedbackType.LongPress)
                             onAppSelected(apps[idx])
                         }
                     },
                     onLongPress = {
                         if (dragTotal < 12f) {
                             val idx = Math.floorMod(offsetAnim.value.roundToInt(), apps.size)
-                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            feedback(HapticFeedbackType.LongPress)
                             onToggleFavorite(apps[idx])
                         }
                     }
                 )
             }
     ) {
-        val cxEdge = size.width // screen edge, both curves meet here at top/bottom
+        // cxEdge sits on whichever screen edge the wheel is attached to;
+        // edgeSign flips the "into screen" direction for the mirrored
+        // left-edge case (see the algebra note in pointOnCurve).
+        val cxEdge = if (wheelOnRight) size.width else 0f
+        val edgeSign = if (wheelOnRight) 1f else -1f
         val cy = size.height / 2f
         val halfHeight = size.height / 2f
 
@@ -127,10 +157,10 @@ fun OrbitWheel(
         // edge at the same top/bottom points, but bulge inward to
         // different depths -- sFar is the deeper/inner line, sNear the
         // shallower/outer line. The lens-shaped gap between them is
-        // where the icon cards sit. Both share the same sagitta
-        // derivation as before, just at two different thicknesses.
-        val sFar = size.width * 0.82f
-        val sNear = size.width * 0.55f
+        // where the icon cards sit. sizeScale grows/shrinks both
+        // together so the whole panel scales as one piece.
+        val sFar = size.width * 0.82f * sizeScale
+        val sNear = size.width * 0.55f * sizeScale
 
         fun curvePoints(s: Float): Triple<Float, Float, Float> {
             val radius = (s * s + halfHeight * halfHeight) / (2f * s)
@@ -139,7 +169,9 @@ fun OrbitWheel(
         }
 
         fun pointOnCurve(s: Float, radius: Float, theta: Float): Offset {
-            val x = cxEdge - s + radius * (1f - cos(theta))
+            // Right edge: x = cxEdge - (s - radius*(1-cosTheta))
+            // Left edge (mirrored): x = cxEdge + (s - radius*(1-cosTheta))
+            val x = cxEdge - edgeSign * (s - radius * (1f - cos(theta)))
             val y = cy + radius * sin(theta)
             return Offset(x, y)
         }
@@ -160,11 +192,8 @@ fun OrbitWheel(
         val farPath = buildCurvePath(sFar, radiusFar, thetaMaxFar)
         val nearPath = buildCurvePath(sNear, radiusNear, thetaMaxNear)
 
-        // Filled lens/band between the two curves.
         val bandPath = Path().apply {
             addPath(farPath)
-            // Walk back along the near curve to close the shape into a
-            // lens/band region rather than two disconnected lines.
             for (i in 40 downTo 0) {
                 val t = -thetaMaxNear + (2f * thetaMaxNear * i / 40)
                 val p = pointOnCurve(sNear, radiusNear, t)
@@ -174,8 +203,6 @@ fun OrbitWheel(
         }
         drawPath(bandPath, color = Color(0x1AFFFFFF))
 
-        // Both lines traced with a soft glow (wide, faint) plus a crisp
-        // core line, tinted with the wallpaper's own accent color.
         val glowStroke = Stroke(width = 6.dp.toPx())
         val coreStroke = Stroke(width = 1.5.dp.toPx())
         drawPath(farPath, color = edgeGlowColor.copy(alpha = 0.35f), style = glowStroke)
@@ -183,12 +210,10 @@ fun OrbitWheel(
         drawPath(nearPath, color = edgeGlowColor.copy(alpha = 0.35f), style = glowStroke)
         drawPath(nearPath, color = edgeGlowColor, style = coreStroke)
 
-        // Icons sit at the midpoint depth between the two lines.
         val sMid = (sFar + sNear) / 2f
         val (_, radius, thetaMax) = curvePoints(sMid)
         fun pointAt(theta: Float) = pointOnCurve(sMid, radius, theta)
 
-        // --- Icon cards along the curve ---
         val roundedOffset = offsetAnim.value.roundToInt()
         val frac = offsetAnim.value - roundedOffset
 
@@ -204,10 +229,8 @@ fun OrbitWheel(
 
             val centerIndex = (VISIBLE_COUNT - 1) / 2f
             val isCenter = posInArc in (centerIndex - 0.5f)..(centerIndex + 0.5f)
-            val cardSize = (if (isCenter) 44f else 34f).dp.toPx()
-            // Fan tilt: cards angle slightly away from center, like a
-            // shallow carousel, rather than sitting perfectly upright.
-            val tiltDeg = (posInArc - centerIndex) * 6f
+            val cardSize = (if (isCenter) 44f else 34f).dp.toPx() * sizeScale
+            val tiltDeg = (posInArc - centerIndex) * 6f * edgeSign
 
             if (isCenter) {
                 drawCircle(
@@ -233,7 +256,7 @@ fun OrbitWheel(
             }
 
             val app = apps[idx]
-            val iconSizePx = (cardSize * 0.62f).roundToInt()
+            val iconSizePx = (cardSize * 0.62f).roundToInt().coerceAtLeast(1)
             val bitmap = run {
                 val b = android.graphics.Bitmap.createBitmap(
                     iconSizePx, iconSizePx, android.graphics.Bitmap.Config.ARGB_8888

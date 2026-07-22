@@ -36,6 +36,7 @@ import com.godwin.orbitlauncher.domain.model.AppInfo
 fun DockRow(
     dockApps: List<AppInfo?>,
     notifyingPackages: Set<String>,
+    showLabels: Boolean = true,
     onSlotTap: (Int) -> Unit,
     onSlotLongPress: (Int) -> Unit,
     modifier: Modifier = Modifier
@@ -95,13 +96,15 @@ fun DockRow(
                         }
                     }
                 }
-                Text(
-                    text = app?.label ?: "Empty",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color(0xFF999999),
-                    textAlign = TextAlign.Center,
-                    maxLines = 1
-                )
+                if (showLabels) {
+                    Text(
+                        text = app?.label ?: "Empty",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFF999999),
+                        textAlign = TextAlign.Center,
+                        maxLines = 1
+                    )
+                }
             }
         }
     }
