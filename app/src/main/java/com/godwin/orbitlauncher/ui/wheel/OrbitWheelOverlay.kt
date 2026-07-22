@@ -43,6 +43,7 @@ fun OrbitWheelOverlay(
     apps: List<AppInfo>,
     favoritePackages: Set<String>,
     notifyingPackages: Set<String>,
+    edgeGlowColor: Color,
     onDismiss: () -> Unit,
     onAppSelected: (AppInfo) -> Unit,
     onToggleFavorite: (AppInfo) -> Unit
@@ -90,6 +91,7 @@ fun OrbitWheelOverlay(
                 apps = apps,
                 favoritePackages = favoritePackages,
                 notifyingPackages = notifyingPackages,
+                edgeGlowColor = edgeGlowColor,
                 onAppSelected = { app ->
                     onAppSelected(app)
                     onDismiss()

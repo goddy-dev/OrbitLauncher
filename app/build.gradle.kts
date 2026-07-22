@@ -13,7 +13,7 @@ android {
         minSdk = 26
         targetSdk = 34
         versionCode = 1
-        versionName = "0.5.2-crescent-panel"
+        versionName = "0.6-phase5-wallpaper"
     }
 
     buildTypes {
@@ -60,6 +60,7 @@ dependencies {
 
     // DataStore (lightweight settings: theme, wheel size, blur, etc.)
     implementation("androidx.datastore:datastore-preferences:1.1.1")
+    implementation("androidx.palette:palette-ktx:1.0.0")
 
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")

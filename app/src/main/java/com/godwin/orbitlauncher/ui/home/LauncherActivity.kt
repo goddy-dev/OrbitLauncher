@@ -1,17 +1,22 @@
 package com.godwin.orbitlauncher.ui.home
 
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -23,11 +28,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.godwin.orbitlauncher.data.notifications.OrbitNotificationListenerService
 import com.godwin.orbitlauncher.di.AppGraph
+import com.godwin.orbitlauncher.domain.util.WallpaperApplier
+import com.godwin.orbitlauncher.domain.util.WallpaperColorExtractor
+import com.godwin.orbitlauncher.ui.home.components.QuickSettingsMenu
 import com.godwin.orbitlauncher.ui.theme.OrbitLauncherTheme
+import com.godwin.orbitlauncher.ui.wallpaper.WallpaperCropScreen
 import com.godwin.orbitlauncher.ui.wheel.OrbitWheelOverlay
 import kotlinx.coroutines.launch
 
@@ -36,15 +46,29 @@ import kotlinx.coroutines.launch
  *
  * Premium features wired in here: real background blur behind the wheel
  * on Android 12+ (falls back to the dim scrim below that on older
- * devices), and one-handed mode (long-press any empty area of the home
- * screen to toggle -- shrinks and anchors the whole UI toward the
- * bottom for easier one-handed reach).
+ * devices), one-handed mode, Material You dynamic color, and the
+ * wallpaper system (Phase 5) -- long-press any empty area of the home
+ * screen opens a small menu with "Change wallpaper" plus the one-handed
+ * and Material You toggles.
  */
 class LauncherActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            OrbitLauncherTheme {
+            val context = LocalContext.current
+
+            var oneHandedMode by remember { mutableStateOf(false) }
+            var materialYouEnabled by remember { mutableStateOf(false) }
+            val scope = rememberCoroutineScope()
+
+            LaunchedEffect(Unit) {
+                AppGraph.settingsRepository.oneHandedModeFlow.collect { oneHandedMode = it }
+            }
+            LaunchedEffect(Unit) {
+                AppGraph.settingsRepository.materialYouFlow.collect { materialYouEnabled = it }
+            }
+
+            OrbitLauncherTheme(materialYouEnabled = materialYouEnabled) {
                 Surface(
                     modifier = Modifier.fillMaxSize().background(Color.Black)
                 ) {
@@ -53,15 +77,20 @@ class LauncherActivity : ComponentActivity() {
                     val notifyingPackages by OrbitNotificationListenerService.activePackages
                         .collectAsState()
 
-                    var wheelOpen by remember { mutableStateOf(false) }
-                    var oneHandedMode by remember { mutableStateOf(false) }
-                    val scope = rememberCoroutineScope()
-
-                    LaunchedEffect(Unit) {
-                        AppGraph.settingsRepository.oneHandedModeFlow.collect {
-                            oneHandedMode = it
-                        }
+                    // Recomputed whenever wallpaperRefreshKey changes, i.e.
+                    // right after a new wallpaper is successfully applied.
+                    var wallpaperRefreshKey by remember { mutableIntStateOf(0) }
+                    val wallpaperAccentColor = remember(wallpaperRefreshKey) {
+                        WallpaperColorExtractor.extractAccentColor(context)
                     }
+
+                    var wheelOpen by remember { mutableStateOf(false) }
+                    var showQuickMenu by remember { mutableStateOf(false) }
+                    var pickedWallpaperUri by remember { mutableStateOf<Uri?>(null) }
+
+                    val pickImageLauncher = rememberLauncherForActivityResult(
+                        contract = ActivityResultContracts.PickVisualMedia()
+                    ) { uri -> if (uri != null) pickedWallpaperUri = uri }
 
                     val blurRadius = if (wheelOpen && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                         16.dp
@@ -74,11 +103,8 @@ class LauncherActivity : ComponentActivity() {
                             .fillMaxSize()
                             .pointerInput(Unit) {
                                 detectTapGestures(
-                                    onLongPress = {
-                                        scope.launch {
-                                            AppGraph.settingsRepository.setOneHandedMode(!oneHandedMode)
-                                        }
-                                    }
+                                    onLongPress = { showQuickMenu = true },
+                                    onTap = { showQuickMenu = false }
                                 )
                             }
                     ) {
@@ -110,10 +136,69 @@ class LauncherActivity : ComponentActivity() {
                             apps = uiState.wheelApps,
                             favoritePackages = uiState.favoritePackages,
                             notifyingPackages = notifyingPackages,
+                            edgeGlowColor = wallpaperAccentColor,
                             onDismiss = { wheelOpen = false },
                             onAppSelected = { app -> homeViewModel.onLaunchApp(app) },
                             onToggleFavorite = { app -> homeViewModel.onToggleFavorite(app) }
                         )
+
+                        if (showQuickMenu) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(24.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                QuickSettingsMenu(
+                                    oneHandedMode = oneHandedMode,
+                                    materialYouEnabled = materialYouEnabled,
+                                    onChangeWallpaper = {
+                                        showQuickMenu = false
+                                        pickImageLauncher.launch(
+                                            androidx.activity.result.PickVisualMediaRequest(
+                                                ActivityResultContracts.PickVisualMedia.ImageOnly
+                                            )
+                                        )
+                                    },
+                                    onToggleOneHanded = {
+                                        scope.launch {
+                                            AppGraph.settingsRepository.setOneHandedMode(!oneHandedMode)
+                                        }
+                                    },
+                                    onToggleMaterialYou = {
+                                        scope.launch {
+                                            AppGraph.settingsRepository.setMaterialYou(!materialYouEnabled)
+                                        }
+                                    }
+                                )
+                            }
+                        }
+
+                        val wallpaperUri = pickedWallpaperUri
+                        if (wallpaperUri != null) {
+                            WallpaperCropScreen(
+                                imageUri = wallpaperUri,
+                                onCancel = { pickedWallpaperUri = null },
+                                onConfirm = { scale, offsetXFraction, offsetYFraction ->
+                                    val metrics = context.resources.displayMetrics
+                                    scope.launch {
+                                        val success = WallpaperApplier.apply(
+                                            context = context,
+                                            sourceUri = wallpaperUri,
+                                            screenWidth = metrics.widthPixels,
+                                            screenHeight = metrics.heightPixels,
+                                            scale = scale,
+                                            offsetXFraction = offsetXFraction,
+                                            offsetYFraction = offsetYFraction
+                                        )
+                                        if (success) {
+                                            wallpaperRefreshKey++
+                                        }
+                                        pickedWallpaperUri = null
+                                    }
+                                }
+                            )
+                        }
                     }
                 }
             }

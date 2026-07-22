@@ -15,7 +15,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -26,20 +25,18 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import com.godwin.orbitlauncher.domain.model.AppInfo
 import kotlinx.coroutines.launch
-import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.asin
 import kotlin.math.cos
 import kotlin.math.roundToInt
 import kotlin.math.sin
 
-private const val VISIBLE_COUNT = 5
+private const val VISIBLE_COUNT = 8
 private const val DRAG_SENSITIVITY = 55f // px of drag per one app step
 
 // Panel proportions, per reference: thickness ~15-20% of screen width at
 // its widest, height ~75-85% of screen height, very large radius for a
 // gentle bend (pivot sits far off-screen, not at the edge itself).
-private const val THICKNESS_FRACTION_OF_WIDTH = 0.82f // of the container's own width
 private const val HEIGHT_FRACTION_OF_SCREEN = 0.80f
 
 /**
@@ -62,6 +59,7 @@ fun OrbitWheel(
     apps: List<AppInfo>,
     favoritePackages: Set<String>,
     notifyingPackages: Set<String>,
+    edgeGlowColor: Color,
     onAppSelected: (AppInfo) -> Unit,
     onToggleFavorite: (AppInfo) -> Unit,
     modifier: Modifier = Modifier
@@ -121,67 +119,74 @@ fun OrbitWheel(
                 )
             }
     ) {
-        val cxEdge = size.width // outer edge, flush with the screen edge
+        val cxEdge = size.width // screen edge, both curves meet here at top/bottom
         val cy = size.height / 2f
         val halfHeight = size.height / 2f
 
-        // Sagitta geometry: s = max inward bulge, h/2 = half the visible
-        // height, R = the (large) radius that makes both true at once.
-        // Derivation: a circle whose center sits (R - s) beyond the edge
-        // intersects the edge line at top/bottom and bulges inward by s
-        // at the middle -- see conversation notes for the full algebra.
-        val s = size.width * THICKNESS_FRACTION_OF_WIDTH
-        val radius = (s * s + halfHeight * halfHeight) / (2f * s)
-        val thetaMax = asin((halfHeight / radius).coerceIn(-1f, 1f))
+        // Two curves (per the approved mockup): both meet the screen
+        // edge at the same top/bottom points, but bulge inward to
+        // different depths -- sFar is the deeper/inner line, sNear the
+        // shallower/outer line. The lens-shaped gap between them is
+        // where the icon cards sit. Both share the same sagitta
+        // derivation as before, just at two different thicknesses.
+        val sFar = size.width * 0.82f
+        val sNear = size.width * 0.55f
 
-        val circleCenterX = cxEdge + (radius - s)
+        fun curvePoints(s: Float): Triple<Float, Float, Float> {
+            val radius = (s * s + halfHeight * halfHeight) / (2f * s)
+            val thetaMax = asin((halfHeight / radius).coerceIn(-1f, 1f))
+            return Triple(s, radius, thetaMax)
+        }
 
-        fun pointAt(theta: Float): Offset {
+        fun pointOnCurve(s: Float, radius: Float, theta: Float): Offset {
             val x = cxEdge - s + radius * (1f - cos(theta))
             val y = cy + radius * sin(theta)
             return Offset(x, y)
         }
 
-        // --- Filled crescent panel with glowing inner-edge border ---
-        val topPoint = pointAt(-thetaMax)
-        val bottomPoint = pointAt(thetaMax)
-        val thetaMaxDeg = thetaMax * 180f / PI.toFloat()
+        val (_, radiusFar, thetaMaxFar) = curvePoints(sFar)
+        val (_, radiusNear, thetaMaxNear) = curvePoints(sNear)
 
-        val panelPath = Path().apply {
-            moveTo(topPoint.x, topPoint.y)
-            arcTo(
-                rect = Rect(
-                    circleCenterX - radius, cy - radius,
-                    circleCenterX + radius, cy + radius
-                ),
-                startAngleDegrees = 180f + thetaMaxDeg,
-                sweepAngleDegrees = -2f * thetaMaxDeg,
-                forceMoveTo = false
-            )
-            lineTo(bottomPoint.x, bottomPoint.y)
-            lineTo(cxEdge, bottomPoint.y)
-            lineTo(cxEdge, topPoint.y)
+        fun buildCurvePath(s: Float, radius: Float, thetaMax: Float, steps: Int = 40): Path {
+            val path = Path()
+            for (i in 0..steps) {
+                val t = -thetaMax + (2f * thetaMax * i / steps)
+                val p = pointOnCurve(s, radius, t)
+                if (i == 0) path.moveTo(p.x, p.y) else path.lineTo(p.x, p.y)
+            }
+            return path
+        }
+
+        val farPath = buildCurvePath(sFar, radiusFar, thetaMaxFar)
+        val nearPath = buildCurvePath(sNear, radiusNear, thetaMaxNear)
+
+        // Filled lens/band between the two curves.
+        val bandPath = Path().apply {
+            addPath(farPath)
+            // Walk back along the near curve to close the shape into a
+            // lens/band region rather than two disconnected lines.
+            for (i in 40 downTo 0) {
+                val t = -thetaMaxNear + (2f * thetaMaxNear * i / 40)
+                val p = pointOnCurve(sNear, radiusNear, t)
+                lineTo(p.x, p.y)
+            }
             close()
         }
+        drawPath(bandPath, color = Color(0x1AFFFFFF))
 
-        drawPath(panelPath, color = Color(0x1AFFFFFF))
+        // Both lines traced with a soft glow (wide, faint) plus a crisp
+        // core line, tinted with the wallpaper's own accent color.
+        val glowStroke = Stroke(width = 6.dp.toPx())
+        val coreStroke = Stroke(width = 1.5.dp.toPx())
+        drawPath(farPath, color = edgeGlowColor.copy(alpha = 0.35f), style = glowStroke)
+        drawPath(farPath, color = edgeGlowColor, style = coreStroke)
+        drawPath(nearPath, color = edgeGlowColor.copy(alpha = 0.35f), style = glowStroke)
+        drawPath(nearPath, color = edgeGlowColor, style = coreStroke)
 
-        // Inner curved edge only (not the straight outer edge) -- traced
-        // with a soft glow (wide, faint stroke) plus a crisp core line.
-        val innerEdgePath = Path().apply {
-            moveTo(topPoint.x, topPoint.y)
-            arcTo(
-                rect = Rect(
-                    circleCenterX - radius, cy - radius,
-                    circleCenterX + radius, cy + radius
-                ),
-                startAngleDegrees = 180f + thetaMaxDeg,
-                sweepAngleDegrees = -2f * thetaMaxDeg,
-                forceMoveTo = false
-            )
-        }
-        drawPath(innerEdgePath, color = Color(0x40E53935), style = Stroke(width = 8.dp.toPx()))
-        drawPath(innerEdgePath, color = Color(0xFFE53935), style = Stroke(width = 1.5.dp.toPx()))
+        // Icons sit at the midpoint depth between the two lines.
+        val sMid = (sFar + sNear) / 2f
+        val (_, radius, thetaMax) = curvePoints(sMid)
+        fun pointAt(theta: Float) = pointOnCurve(sMid, radius, theta)
 
         // --- Icon cards along the curve ---
         val roundedOffset = offsetAnim.value.roundToInt()
@@ -197,11 +202,12 @@ fun OrbitWheel(
             val x = point.x
             val y = point.y
 
-            val isCenter = posInArc in 1.5f..2.5f
-            val cardSize = (if (isCenter) 52f else 42f).dp.toPx()
+            val centerIndex = (VISIBLE_COUNT - 1) / 2f
+            val isCenter = posInArc in (centerIndex - 0.5f)..(centerIndex + 0.5f)
+            val cardSize = (if (isCenter) 44f else 34f).dp.toPx()
             // Fan tilt: cards angle slightly away from center, like a
             // shallow carousel, rather than sitting perfectly upright.
-            val tiltDeg = (posInArc - 2f) * 9f
+            val tiltDeg = (posInArc - centerIndex) * 6f
 
             if (isCenter) {
                 drawCircle(
@@ -247,7 +253,7 @@ fun OrbitWheel(
             val badgeOffset = cardSize * 0.42f
             if (app.packageName in favoritePackages) {
                 drawCircle(
-                    color = Color(0xFFE53935),
+                    color = edgeGlowColor,
                     radius = 4.dp.toPx(),
                     center = Offset(x + badgeOffset, y + badgeOffset)
                 )
