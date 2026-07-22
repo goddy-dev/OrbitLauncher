@@ -13,7 +13,7 @@ android {
         minSdk = 26
         targetSdk = 34
         versionCode = 1
-        versionName = "0.7-phase6-settings"
+        versionName = "0.7.1-16apps-black-lines"
     }
 
     buildTypes {

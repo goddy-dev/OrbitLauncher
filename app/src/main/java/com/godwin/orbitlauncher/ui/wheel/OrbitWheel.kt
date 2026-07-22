@@ -33,7 +33,7 @@ import kotlin.math.cos
 import kotlin.math.roundToInt
 import kotlin.math.sin
 
-private const val VISIBLE_COUNT = 8
+private const val VISIBLE_COUNT = 16
 private const val DRAG_SENSITIVITY = 55f // px of drag per one app step
 private const val BASE_SNAP_DURATION_MS = 150
 
@@ -46,9 +46,9 @@ private const val BASE_WIDTH_DP = 110
 /**
  * Vertical crescent panel, attachable to either screen edge -- an
  * annular sector (slice of a ring), not a floating row of bubbles. Two
- * curved lines (tinted with [edgeGlowColor], usually pulled from the
- * wallpaper) bound a lens-shaped band where icon cards sit, fanned
- * slightly along the arc.
+ * curved lines (fixed black) bound a lens-shaped band where icon cards
+ * sit, fanned slightly along the arc. [edgeGlowColor] (usually pulled
+ * from the wallpaper) is used for the favorite-app badge dot only.
  *
  * Settings applied here (Phase 6): [sizeScale] scales the panel's width
  * and line thickness, [animationSpeedScale] scales snap-animation
@@ -205,10 +205,11 @@ fun OrbitWheel(
 
         val glowStroke = Stroke(width = 6.dp.toPx())
         val coreStroke = Stroke(width = 1.5.dp.toPx())
-        drawPath(farPath, color = edgeGlowColor.copy(alpha = 0.35f), style = glowStroke)
-        drawPath(farPath, color = edgeGlowColor, style = coreStroke)
-        drawPath(nearPath, color = edgeGlowColor.copy(alpha = 0.35f), style = glowStroke)
-        drawPath(nearPath, color = edgeGlowColor, style = coreStroke)
+        val lineColor = Color.Black
+        drawPath(farPath, color = lineColor.copy(alpha = 0.55f), style = glowStroke)
+        drawPath(farPath, color = lineColor, style = coreStroke)
+        drawPath(nearPath, color = lineColor.copy(alpha = 0.55f), style = glowStroke)
+        drawPath(nearPath, color = lineColor, style = coreStroke)
 
         val sMid = (sFar + sNear) / 2f
         val (_, radius, thetaMax) = curvePoints(sMid)
@@ -229,8 +230,8 @@ fun OrbitWheel(
 
             val centerIndex = (VISIBLE_COUNT - 1) / 2f
             val isCenter = posInArc in (centerIndex - 0.5f)..(centerIndex + 0.5f)
-            val cardSize = (if (isCenter) 44f else 34f).dp.toPx() * sizeScale
-            val tiltDeg = (posInArc - centerIndex) * 6f * edgeSign
+            val cardSize = (if (isCenter) 32f else 24f).dp.toPx() * sizeScale
+            val tiltDeg = (posInArc - centerIndex) * 3f * edgeSign
 
             if (isCenter) {
                 drawCircle(
