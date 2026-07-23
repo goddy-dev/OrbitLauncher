@@ -1,7 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.OrbitLauncher" parent="android:Theme.Material.NoActionBar">
-        <item name="android:windowBackground">@android:color/black</item>
-        <item name="android:statusBarColor">@android:color/black</item>
-        <item name="android:navigationBarColor">@android:color/black</item>
+    <style name="Theme.NyumbaniLauncher" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/defaultAccent</item>
+        <item name="android:windowBackground">@color/defaultBackground</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+
+    <style name="Theme.NyumbaniLauncher.NoAnim">
+        <item name="android:windowAnimationStyle">@null</item>
     </style>
 </resources>

@@ -13,5 +13,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "OrbitLauncher"
+rootProject.name = "NyumbaniLauncher"
 include(":app")

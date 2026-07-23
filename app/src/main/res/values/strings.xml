@@ -1,3 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Orbit Launcher</string>
+    <string name="app_name">Nyumbani Launcher</string>
+    <string name="settings_title">Launcher Settings</string>
+    <string name="add_app">Add app to home</string>
+    <string name="search_apps">Search apps…</string>
+    <string name="unknown_app">Unknown app</string>
+    <string name="make_folder">Make folder</string>
+    <string name="rename_folder">Rename folder</string>
+    <string name="remove">Remove from home</string>
+    <string name="folder">Folder</string>
+    <string name="folder_name_hint">Folder name</string>
+    <string name="ok">OK</string>
+    <string name="cancel">Cancel</string>
+    <string name="backup_restore">Backup &amp; Restore</string>
+    <string name="notifications_unavailable">Can\'t open notifications on this device</string>
+
+    <string name="grid_size">Grid Size</string>
+    <string name="columns">Columns</string>
+    <string name="rows">Rows</string>
+    <string name="accent_color">Accent Color</string>
+    <string name="show_icon_labels">Show icon labels</string>
+    <string name="gestures">Gestures</string>
+    <string name="swipe_up">Swipe up</string>
+    <string name="swipe_down">Swipe down</string>
+    <string name="backup_restore_hint">Saves your layout, grid size, colors and gesture settings to a JSON file in Downloads.</string>
+    <string name="save_backup">Save Backup</string>
+    <string name="restore_backup">Restore Backup</string>
 </resources>
